@@ -1,42 +1,62 @@
-apiVersion: helm.toolkit.fluxcd.io/v2
-kind: HelmRelease
+apiVersion: v1
+kind: Service
 metadata:
-  name: mattermost-db
+  name: mattermost-db-postgresql
   namespace: mattermost
 spec:
-  interval: 10m0s
-  chart:
+  selector:
+    app: mattermost-postgresql
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mattermost-db-postgresql
+  namespace: mattermost
+spec:
+  serviceName: mattermost-db-postgresql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mattermost-postgresql
+  template:
+    metadata:
+      labels:
+        app: mattermost-postgresql
     spec:
-      chart: postgresql
-      version: ">=15.0.0 <16.0.0"
-      sourceRef:
-        kind: HelmRepository
-        name: bitnami
-        namespace: flux-system
-      interval: 1h0m0s
-  install:
-    remediation:
-      retries: 3
-  upgrade:
-    remediation:
-      remediateLastFailure: true
-      retries: 3
-      strategy: rollback
-  values:
-    image:
-      registry: docker.io
-      repository: postgres
-      tag: "15-alpine"
-      pullPolicy: IfNotPresent
-    global:
-      postgresql:
-        auth:
-          username: mmuser
-          password: "mattermost_db_password"
-          database: mattermost
-    primary:
-      persistence:
-        enabled: true
-        size: 10Gi
-    readReplicas:
-      replicaCount: 0
+      containers:
+        - name: postgresql
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: mmuser
+            - name: POSTGRES_DB
+              value: mattermost
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mattermost-db-postgresql
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, mmuser, -d, mattermost]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 10Gi
