@@ -9,7 +9,7 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 
-name: production   # Must match CLUSTER_NAME in .env
+name: production
 
 networking:
   # Use Calico-compatible CIDR (avoids MetalLB conflicts)
