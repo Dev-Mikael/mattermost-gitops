@@ -1,12 +1,3 @@
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
-metadata:
-  name: bitnami
-  namespace: flux-system
-spec:
-  interval: 1h0m0s
-  url: https://charts.bitnami.com/bitnami
----
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -31,34 +22,19 @@ spec:
       remediateLastFailure: true
       retries: 3
       strategy: rollback
-  # Pull the postgres password from the sealed secret
-  valuesFrom:
-    - kind: Secret
-      name: mattermost-db-postgresql
-      valuesKey: postgres-password
-      targetPath: global.postgresql.auth.postgresPassword
-    - kind: Secret
-      name: mattermost-db-postgresql
-      valuesKey: password
-      targetPath: global.postgresql.auth.password
   values:
+    image:
+      registry: oci.bitnami.com
+      repository: bitnami/postgresql
     global:
       postgresql:
         auth:
           username: mmuser
+          password: "mattermost_db_password"
           database: mattermost
-          # password: injected via valuesFrom above
     primary:
       persistence:
         enabled: true
         size: 10Gi
-        storageClass: ""          # Uses cluster default StorageClass
-      resources:
-        limits:
-          cpu: 500m
-          memory: 512Mi
-        requests:
-          cpu: 250m
-          memory: 256Mi
     readReplicas:
-      replicaCount: 0             # Set to 1+ for HA
+      replicaCount: 0
