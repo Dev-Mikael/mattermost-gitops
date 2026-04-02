@@ -1,0 +1,44 @@
+# kind/kind-cluster.yaml
+# Kind cluster configuration for LOCAL DEV / TESTING only.
+# For a real on-prem server use kubeadm (see scripts/02b-setup-kubeadm.sh).
+#
+# This config:
+#   - Creates a single control-plane + 1 worker node
+#   - Maps host ports 80 and 443 so nginx ingress is reachable from localhost
+#   - Disables the built-in kind CNI so MetalLB can be used cleanly
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+name: production   # Must match CLUSTER_NAME in .env
+
+networking:
+  # Use Calico-compatible CIDR (avoids MetalLB conflicts)
+  podSubnet:     "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/12"
+  # Disable default kindnet CNI — we'll use flannel (built into kind by default)
+  # disableDefaultCNI: false   # Keep default kindnet for simplicity
+
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+
+  - role: worker
+    # Optional: increase worker resources via extra labels
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "workload=true"

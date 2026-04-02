@@ -1,0 +1,23 @@
+# ==============================================
+# NEVER commit these files — they contain secrets
+# ==============================================
+.env
+*.key
+*.pem
+age.agekey
+
+# Plain (un-sealed) secret templates — seal before committing
+secrets/templates/
+**/plain-secret.yaml
+**/unseal-*.yaml
+
+# OS / Editor
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Temporary files created by bootstrap scripts
+tmp/
+*.tmp

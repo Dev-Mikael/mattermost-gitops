@@ -1,0 +1,26 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps
+  namespace: flux-system
+spec:
+  interval: 10m0s
+  dependsOn:
+    - name: infrastructure       # Will not start until infrastructure is fully healthy
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./apps
+  prune: true
+  wait: true
+  timeout: 15m0s
+  # Substitute ${DOMAIN}, ${LETSENCRYPT_EMAIL} etc. inside app manifests
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-values
+  healthChecks:
+    - apiVersion: installation.mattermost.com/v1beta1
+      kind: Mattermost
+      name: mattermost
+      namespace: mattermost

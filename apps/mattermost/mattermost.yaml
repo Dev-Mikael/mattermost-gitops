@@ -1,0 +1,93 @@
+apiVersion: installation.mattermost.com/v1beta1
+kind: Mattermost
+metadata:
+  name: mattermost
+  namespace: mattermost
+spec:
+  # ── Sizing preset ──────────────────────────────────────────
+  # Options: 100users | 1000users | 5000users | 10000users | 25000users
+  # For on-prem with limited resources start with 100users and scale up
+  size: 100users
+
+  # ── Container image ────────────────────────────────────────
+  image: mattermost/mattermost-team-edition
+  version: "9.11.0"                 # Pin to a specific stable release
+
+  # ── Replicas (overrides size preset) ─────────────────────
+  # replicas: 2                     # Uncomment to override
+
+  # ── Ingress ────────────────────────────────────────────────
+  # ${DOMAIN} is substituted by Flux postBuild from cluster-values ConfigMap
+  ingress:
+    enabled: true
+    host: ${DOMAIN}
+    ingressClassName: nginx
+    annotations:
+      # Use production issuer once staging cert works
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+      # WebSocket support for real-time messaging
+      nginx.ingress.kubernetes.io/configuration-snippet: |
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    tlsSecret: mattermost-tls
+
+  # ── Database ───────────────────────────────────────────────
+  database:
+    external:
+      secret: mattermost-db-credentials    # Sealed secret key: DB_CONNECTION_STRING
+
+  # ── File storage ───────────────────────────────────────────
+  fileStore:
+    operatorManaged:
+      storageSize: 50Gi
+      storageClass: ""                     # Uses cluster default StorageClass
+
+  # ── App environment config ────────────────────────────────
+  mattermostEnv:
+    - name: MM_SERVICESETTINGS_SITEURL
+      value: "https://${DOMAIN}"
+    - name: MM_LOGSETTINGS_CONSOLELEVEL
+      value: "INFO"
+    - name: MM_LOGSETTINGS_ENABLEFILE
+      value: "false"
+    - name: MM_EMAILSETTINGS_ENABLESIGNINWITHEMAIL
+      value: "true"
+    - name: MM_EMAILSETTINGS_ENABLESIGNINWITHUSERNAME
+      value: "true"
+    - name: MM_SERVICESETTINGS_ENABLEBOTACCOUNTCREATION
+      value: "true"
+    - name: MM_SERVICESETTINGS_ENABLEOAUTHSERVICEPROVIDER
+      value: "true"
+    - name: MM_TEAMSETTINGS_ENABLETEAMCREATION
+      value: "true"
+    - name: MM_PLUGINSETTINGS_ENABLE
+      value: "true"
+
+  # ── Resource requests/limits ──────────────────────────────
+  resources:
+    limits:
+      cpu: "1"
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+  # ── Probes ────────────────────────────────────────────────
+  livenessProbe:
+    httpGet:
+      path: /api/v4/system/ping
+      port: 8065
+    initialDelaySeconds: 90
+    periodSeconds: 15
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /api/v4/system/ping
+      port: 8065
+    initialDelaySeconds: 15
+    periodSeconds: 5
+    failureThreshold: 3
