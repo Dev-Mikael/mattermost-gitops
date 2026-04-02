@@ -24,8 +24,10 @@ spec:
       strategy: rollback
   values:
     image:
-      registry: oci.bitnami.com
-      repository: bitnami/postgresql
+      registry: docker.io
+      repository: postgres
+      tag: "15-alpine"
+      pullPolicy: IfNotPresent
     global:
       postgresql:
         auth:
