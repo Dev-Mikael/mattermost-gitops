@@ -24,7 +24,7 @@ spec:
 
   fileStore:
     external:
-      url: http://minio.mattermost.svc.cluster.local:9000
+      url: minio.mattermost.svc.cluster.local:9000
       bucket: mattermost
       secret: mattermost-minio-credentials
 
